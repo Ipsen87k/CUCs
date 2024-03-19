@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use image::{imageops, DynamicImage};
+use image::{imageops, DynamicImage, GenericImageView};
 
 use crate::CResult;
 
@@ -25,6 +25,10 @@ impl ImgEdit {
         let resize_img = self.image.resize(width, height, imageops::FilterType::Lanczos3);
         self.result_image = Some(resize_img);
         Ok(())
+    }
+
+    pub fn get_dimension(&self)->(u32,u32){
+        self.image.dimensions()
     }
 
     pub fn save<P>(&mut self,save_path:P)->CResult<()>

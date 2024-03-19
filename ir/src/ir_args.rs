@@ -1,6 +1,6 @@
-use std::{ffi::OsStr, io::{self, Write}, path::{Path, PathBuf}, thread};
+use std::{path::{Path, PathBuf}, thread};
 
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 use crate::{chrono_wrap, ir_core, spinner, util, CResult};
 
@@ -9,6 +9,7 @@ pub struct Config{
     output:String,
     width:String,
     height:String,
+    info:bool,
 }
 
 pub fn create_args()->CResult<Config>{
@@ -47,6 +48,13 @@ pub fn create_args()->CResult<Config>{
                 .help("Input height value")
                 .default_value("0")
         )
+        .arg(
+            Arg::new("info")
+                .short('i')
+                .long("info")
+                .help("print img info")
+                .action(ArgAction::SetTrue)
+        )
         .get_matches();
     
 
@@ -56,6 +64,7 @@ pub fn create_args()->CResult<Config>{
             output:matches.get_one("output").cloned().unwrap(),
             width:matches.get_one("width").cloned().unwrap(),
             height:matches.get_one("height").cloned().unwrap(),
+            info:matches.get_flag("info"),
         }
     )
 }
@@ -74,6 +83,11 @@ pub fn run(config:Config)->CResult<()>{
 
     let (img_edit,img_edit_clone)=util::create_arc_mutex(ir_core::ImgEdit::new(&config.file));
     let (img_execute_end,img_execute_end_clone )= util::create_arc_mutex(false);
+
+    if config.info{
+        let (w,h)=img_edit.lock().unwrap().get_dimension();
+        println!("{}x{}",w,h);
+    }
 
     let handle = thread::spawn(move ||{
         let mut locked_img_edit = img_edit_clone.lock().unwrap();
