@@ -4,7 +4,9 @@ Copyright © 2024 Ipsen87k <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -33,12 +35,25 @@ to quickly create a Cobra application.`,
 			cobra.CheckErr(err)
 			args = []string{currentDir}
 		}
+
+		var wg sync.WaitGroup
+
+		//解凍
 		if isUnZip {
-			if outputFilePath != "" {
-				core.UnZip(args[0], outputFilePath)
-			} else {
-				core.UnZip(args[0], "")
+			for _, zipFile := range args {
+				wg.Add(1)
+				go func(zipFile string) {
+					defer wg.Done()
+
+					if err := core.UnZip(zipFile, outputFilePath); err != nil {
+						fmt.Printf("Error unzipping file %s: %v\n", zipFile, err)
+					} else {
+						fmt.Printf("Successfully unzipped file %s\n", zipFile)
+					}
+
+				}(zipFile)
 			}
+			wg.Wait()
 			return
 		}
 
@@ -46,7 +61,11 @@ to quickly create a Cobra application.`,
 			outputFilePath = "output"
 		}
 		outputFilePath += ".zip"
-		core.ConvertToZip(outputFilePath, args)
+		if err := core.ZipFiles(outputFilePath, args); err != nil {
+			fmt.Printf("Error zipping file :%v\n", err)
+		} else {
+			fmt.Printf("Successfully zipped file %s\n", outputFilePath)
+		}
 
 	},
 }
@@ -61,7 +80,6 @@ func Execute() {
 }
 
 func init() {
-
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.Flags().BoolVarP(&isUnZip, "unzip", "u", false, "zipg -u [compressed directory or files]")
 	rootCmd.Flags().StringVarP(&outputFilePath, "output", "o", "", "zip -o [output filepath]")

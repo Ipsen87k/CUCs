@@ -2,15 +2,124 @@ package core
 
 import (
 	"archive/zip"
-	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/spf13/cobra"
 )
+
+func ZipFiles(zipFilename string, patterns []string) error {
+	outFile, err := os.Create(zipFilename)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	zipWriter := zip.NewWriter(outFile)
+	defer zipWriter.Close()
+
+	fileChan := make(chan string, 10)
+	errChan := make(chan error, 10)
+
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return err
+		}
+
+		for _, file := range matches {
+			if !isDir(file) {
+				func(file, pattern string) {
+
+					err := addFileToZip(zipWriter, file, filepath.Dir(pattern))
+					if err != nil {
+						errChan <- err
+					}
+					fileChan <- file
+				}(file, pattern)
+			} else {
+				err := filepath.WalkDir(file, func(path string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+
+					if d.IsDir() {
+						return nil
+					}
+
+					err = addFileToZip(zipWriter, path, file)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					errChan <- err
+				}
+			}
+		}
+	}
+
+	close(fileChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return nil
+}
+
+func addFileToZip(zipWriter *zip.Writer, filename, baseDir string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	relativePath, err := filepath.Rel(baseDir, filename)
+	if err != nil {
+		return err
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	zipHeader, err := zip.FileInfoHeader(fileInfo)
+	if err != nil {
+		return err
+	}
+
+	zipHeader.Name = relativePath
+	zipHeader.Method = zip.Deflate
+
+	writer, err := zipWriter.CreateHeader(zipHeader)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(writer, file)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
 
 func ConvertToZip(zipFileName string, filePaths []string) {
 	zipFile, err := os.Create(zipFileName)
@@ -62,31 +171,46 @@ func fileToZip(file string, zipWriter *zip.Writer) {
 	cobra.CheckErr(err)
 }
 
-func UnZip(zipFilePath string, dstPath string) {
-	zipReader, err := zip.OpenReader(zipFilePath)
-	cobra.CheckErr(err)
-	defer zipReader.Close()
-
-	var wg sync.WaitGroup
-
-	for _, file := range zipReader.File {
-		wg.Add(1)
-
-		go func(zipFile *zip.File) {
-			defer wg.Done()
-			extratFilePath := fmt.Sprintf("%s/%s", dstPath, zipFile.Name)
-
-			mkdirAll(extratFilePath)
-			if !zipFile.FileInfo().IsDir() && dstPath == "" {
-				extratFilePath = zipFile.Name
-				extractFile(zipFile, extratFilePath)
-			} else if !zipFile.FileInfo().IsDir() {
-				extractFile(zipFile, extratFilePath)
-			}
-		}(file)
+func UnZip(zipFile, dstPath string) error {
+	r, err := zip.OpenReader(zipFile)
+	if err != nil {
+		return err
 	}
 
-	wg.Wait()
+	defer r.Close()
+
+	for _, f := range r.File {
+		filePath := filepath.Join(dstPath, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(filePath, os.ModePerm)
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+			return err
+		}
+
+		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+
+		if err != nil {
+			return err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(outFile, rc)
+		outFile.Close()
+		rc.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func extractFile(file *zip.File, dstPath string) {
