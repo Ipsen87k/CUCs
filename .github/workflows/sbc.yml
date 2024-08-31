@@ -8,10 +8,9 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: actions-rust-lang/setup-rust-toolchain@v1
-            - run: cd sbc
 
             - name: Rust Build
-              run: cargo build
+              run: cd sbc;cargo build
 
             - name: Rust Test
-              run: cargo t
+              run: cd sbc;cargo t
