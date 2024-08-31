@@ -19,6 +19,7 @@ pub fn create_args()->CResult<Config>{
             Arg::new("strings")
                 .value_name("STRINGS")
                 .default_value("")
+                .num_args(1..)
         )
         .arg(
             Arg::new("count")
@@ -46,7 +47,7 @@ pub fn create_args()->CResult<Config>{
 
 pub fn run(config:Config)->CResult<()>{
     for str in &config.strings{
-        println!("{}",str);
+        println!("target = {}",str);
         if config.is_count{
             println!("count = {}",str.chars().count());
         }

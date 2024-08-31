@@ -1,0 +1,16 @@
+name: sbc
+run-name: Run by @${{github.actor}} sbc
+on: pull_request
+jobs:
+    test:
+        name: sbc
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+            - name: Rust Build
+              run: cd sbc;cargo build
+
+            - name: Rust Test
+              run: cd sbc;cargo t
