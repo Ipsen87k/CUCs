@@ -1,6 +1,6 @@
 name: sbc
 run-name: Run by @${{github.actor}}
-on: pull_request
+on: push
 jobs:
     test:
         name: sbc
