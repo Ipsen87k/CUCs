@@ -1,0 +1,11 @@
+name: sbc
+run-name: Run by @${{github.actor}}
+on: pull_request
+jobs:
+    test:
+        name: sbc
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+            - run: cargo test
