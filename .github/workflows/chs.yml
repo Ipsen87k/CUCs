@@ -1,0 +1,15 @@
+name: chs
+run-name: Run by @${{github.actor}} chs
+on: pull_request
+jobs:
+    test:
+        name: chs
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-go@v5
+              with:
+                go-version: '1.22'
+            # expectedのoutファイルに.gitignoreで省かれるexeファイルを除くこと
+            - name: Go Test
+              run: cd chs;go test ./...
