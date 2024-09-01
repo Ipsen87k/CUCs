@@ -57,7 +57,7 @@ func TestHttpServer(t *testing.T) {
 	}
 
 	//Http Response Test
-	expected, err := os.ReadFile("./expected/TestHttpServer.out")
+	expected, err := os.ReadFile("./expected/TestResponseHttpServer.out")
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
