@@ -68,6 +68,7 @@ func TestHttpServer(t *testing.T) {
 	}
 
 	if strings.Compare(expectedStr, testCase.text) != 0 {
+		t.Logf("expected = %s\n", expectedStr)
 		t.Logf("testCase.text = %s", testCase.text)
 		t.Fatalf("文字列が違います\n")
 	}
